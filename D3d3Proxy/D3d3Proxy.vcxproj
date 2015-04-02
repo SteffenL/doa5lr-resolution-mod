@@ -126,7 +126,7 @@
       <AdditionalDependencies>libMinHook.x86.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy "$(TargetPath)" "D:\Games\DEAD OR ALIVE 5 Last Round\" /Y</Command>
+      <Command>xcopy "$(TargetPath)" "D:\Program Files (x86)\Steam\steamapps\common\Dead or Alive 5 Last Round\" /Y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -176,7 +176,7 @@
       <AdditionalDependencies>libMinHook.x86.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy "$(TargetPath)" "D:\Games\DEAD OR ALIVE 5 Last Round\" /Y</Command>
+      <Command>xcopy "$(TargetPath)" "D:\Program Files (x86)\Steam\steamapps\common\Dead or Alive 5 Last Round\" /Y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
