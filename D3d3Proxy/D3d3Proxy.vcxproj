@@ -115,15 +115,16 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;libpad_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\thirdparty\minhook\include;$(SolutionDir)\thirdparty\nowide</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_WINDOWS;_USRDLL;libpad_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)\thirdparty\minhook\include;$(SolutionDir)\thirdparty\nowide;$(SolutionDir)\thirdparty\steamworks\sdk\public</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ModuleDefinitionFile>exports.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(SolutionDir)\thirdparty\minhook\build\VC12\lib\Debug</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libMinHook.x86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)\thirdparty\steamworks\sdk\redistributable_bin;$(SolutionDir)\thirdparty\minhook\build\VC12\lib\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>steam_api.lib;libMinHook.x86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>steam_api.dll</DelayLoadDLLs>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(TargetPath)" "D:\Program Files (x86)\Steam\steamapps\common\Dead or Alive 5 Last Round\" /Y</Command>
@@ -162,8 +163,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;libpad_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)\thirdparty\minhook\include;$(SolutionDir)\thirdparty\nowide</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_WINDOWS;_USRDLL;libpad_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)\thirdparty\minhook\include;$(SolutionDir)\thirdparty\nowide;$(SolutionDir)\thirdparty\steamworks\sdk\public</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -172,8 +173,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <ModuleDefinitionFile>exports.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(SolutionDir)\thirdparty\minhook\build\VC12\lib\Release</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libMinHook.x86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)\thirdparty\steamworks\sdk\redistributable_bin;$(SolutionDir)\thirdparty\minhook\build\VC12\lib\Release</AdditionalLibraryDirectories>
+      <AdditionalDependencies>steam_api.lib;libMinHook.x86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>steam_api.dll</DelayLoadDLLs>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(TargetPath)" "D:\Program Files (x86)\Steam\steamapps\common\Dead or Alive 5 Last Round\" /Y</Command>

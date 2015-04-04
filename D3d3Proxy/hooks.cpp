@@ -7,11 +7,15 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <sstream>
 #include <stdio.h>
 
 #include <MinHook.h>
+#include <steam/steam_api.h>
+
 #include <DbgHelp.h>
 #include <strsafe.h>
+#include <ShlObj.h>
 
 #pragma comment(lib, "DbgHelp.lib")
 
@@ -24,6 +28,26 @@ D3d9OrigFunctions g_origDllFunctions;
 HMODULE g_origDll = NULL;
 uintptr_t g_baseOfCode = 0;
 uintptr_t g_sizeOfCode = 0;
+char g_saveDataDir[MAX_PATH] = { 0 };
+
+struct CreateFileParams
+{
+    char FileName[MAX_PATH];
+};
+
+struct SteamCloudRedirectedFile
+{
+    CreateFileParams FileParams;
+    char RelativeFilePath[MAX_PATH];
+    HANDLE TempFileHandle;
+    unsigned int BytesRead;
+    unsigned int BytesWritten;
+
+    SteamCloudRedirectedFile() : TempFileHandle(NULL), BytesRead(0), BytesWritten(0) {}
+};
+
+// Always use the read-handle for a pipe when mapping to the file details
+std::map<HANDLE, SteamCloudRedirectedFile> g_steamCloudFileRedirects;
 
 //std::vector<HMODULE> g_proxyLibraries_D3d9;
 std::vector<D3d9OrigFunctions::Direct3DCreate9_t> g_proxyChain_Direct3DCreate9;
@@ -82,14 +106,109 @@ CreateFileA_t CreateFileAOrig;
 
 HANDLE WINAPI CreateFileADetour(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
-    showMessageBox(0, lpFileName, "File", 0);
+    // Check whether the file resides in the original save data directory
+    auto saveDataDirLength = lstrlenA(g_saveDataDir);
+    if (saveDataDirLength > 0) {
+        if (strstr(lpFileName, g_saveDataDir) == lpFileName) {
+            SteamCloudRedirectedFile redirectedFile;
+
+            StringCchCopyA(redirectedFile.FileParams.FileName, _countof(redirectedFile.FileParams.FileName), lpFileName);
+            StringCchCopyA(redirectedFile.RelativeFilePath, _countof(redirectedFile.RelativeFilePath), "save\\");
+            StringCchCatA(redirectedFile.RelativeFilePath, _countof(redirectedFile.RelativeFilePath), lpFileName + saveDataDirLength);
+
+
+            /*if (dwDesiredAccess & (GENERIC_WRITE | GENERIC_READ) == GENERIC_WRITE) {
+                showMessageBox(0, "1", "", 0);
+
+                // Create file with a temporary path instead
+                char tempFilePath[L_tmpnam_s];
+                if (tmpnam_s(tempFilePath, _countof(tempFilePath)) == 0) {
+                    redirectedFile.TempFileHandle = CreateFileAOrig(tempFilePath, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+                    showMessageBox(0, tempFilePath, "w", 0);
+                    g_steamCloudFileRedirects.insert(std::make_pair(redirectedFile.TempFileHandle, redirectedFile));
+                    return redirectedFile.TempFileHandle;
+                }
+            }
+            else {
+                char tempFilePath[L_tmpnam_s] = { 0 };
+                tmpnam_s(tempFilePath, _countof(tempFilePath));
+
+                // Copy the file from Steam in case of reads and writes, or just reads
+                auto remoteStorage = SteamRemoteStorage();
+                if (remoteStorage->FileExists(redirectedFile.RelativeFilePath)) {
+                    auto fileSize = remoteStorage->GetFileSize(redirectedFile.RelativeFilePath);
+                    std::vector<char> fileData;
+                    fileData.resize(fileSize);
+                    remoteStorage->FileRead(redirectedFile.RelativeFilePath, fileData.data(), fileSize);
+
+                    char tempFilePath[L_tmpnam_s];
+                    if (tmpnam_s(tempFilePath, _countof(tempFilePath)) == 0) {
+                    }
+                }
+                else {
+
+                }
+            }*/
+        }
+    }
 
     return CreateFileAOrig(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+}
+
+typedef BOOL(WINAPI* WriteFile_t)(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite, LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped);
+WriteFile_t WriteFileOrig;
+
+BOOL WINAPI WriteFileDetour(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite, LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped)
+{
+    /*auto it = g_steamCloudFileRedirects.find(hFile);
+    if (it != g_steamCloudFileRedirects.end()) {
+        showMessageBox(0, "Writing", 0, 0);
+    }*/
+
+    return WriteFileOrig(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, lpOverlapped);
+}
+
+typedef BOOL(WINAPI* ReadFile_t)(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead, LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped);
+ReadFile_t ReadFileOrig;
+
+BOOL WINAPI ReadFileDetour(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead, LPDWORD lpNumberOfBytesRead, LPOVERLAPPED lpOverlapped)
+{
+    /*auto it = g_steamCloudFileRedirects.find(hFile);
+    if (it != g_steamCloudFileRedirects.end()) {
+        showMessageBox(0, "Reading", 0, 0);
+    }*/
+
+    return ReadFileOrig(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped);
+}
+
+typedef BOOL(WINAPI* CloseHandle_t)(HANDLE hObject);
+CloseHandle_t CloseHandleOrig;
+
+BOOL WINAPI CloseHandleDetour(HANDLE hObject)
+{
+    return CloseHandleOrig(hObject);
 }
 
 
 BOOL hookGame()
 {
+    auto steamUser = SteamUser();
+    if (steamUser) {
+        // Get the user's Steam ID as a hex string
+        char steamIdStr[200];
+        sprintf_s(steamIdStr, "%x", steamUser->GetSteamID());
+
+        char saveDataDir[MAX_PATH];
+        // The game uses the default path rather than the current path
+        SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_DEFAULT, saveDataDir);
+        StringCchCatA(saveDataDir, _countof(saveDataDir), "\\KoeiTecmo\\DOA5LR\\");
+        StringCchCatA(saveDataDir, _countof(saveDataDir), steamIdStr);
+        StringCchCatA(saveDataDir, _countof(saveDataDir), "\\");
+
+        StringCchCopyA(g_saveDataDir, _countof(g_saveDataDir), saveDataDir);
+
+        showMessageBox(0, g_saveDataDir, "", 0);
+    }
 
 
     //
@@ -383,10 +502,20 @@ BOOL initializeHooks()
             break;
         }
 
-        /*if (MH_CreateHook(CreateFileA, &CreateFileADetour, reinterpret_cast<LPVOID*>(&CreateFileAOrig)) != MH_OK) {
+        if (MH_CreateHook(CreateFileA, &CreateFileADetour, reinterpret_cast<LPVOID*>(&CreateFileAOrig)) != MH_OK) {
             showMessageBox(NULL, "Failed to create hook for CreateFileA.", NULL, MB_ICONERROR);
             break;
-        }*/
+        }
+
+        if (MH_CreateHook(ReadFile, &ReadFileDetour, reinterpret_cast<LPVOID*>(&ReadFileOrig)) != MH_OK) {
+            showMessageBox(NULL, "Failed to create hook for ReadFile.", NULL, MB_ICONERROR);
+            break;
+        }
+
+        if (MH_CreateHook(WriteFile, &WriteFileDetour, reinterpret_cast<LPVOID*>(&WriteFileOrig)) != MH_OK) {
+            showMessageBox(NULL, "Failed to create hook for WriteFile.", NULL, MB_ICONERROR);
+            break;
+        }
 
         /*if (MH_CreateHook(g_origDllFunctions.Direct3DCreate9, &Direct3DCreate9Detour, reinterpret_cast<LPVOID*>(&Direct3DCreate9Orig)) != MH_OK) {
             showMessageBox(NULL, "Failed to create hook for Direct3DCreate9.", NULL, MB_ICONERROR);
@@ -408,10 +537,20 @@ BOOL initializeHooks()
             break;
         }
 
-        /*if (MH_EnableHook(CreateFileA) != MH_OK) {
+        if (MH_EnableHook(CreateFileA) != MH_OK) {
             showMessageBox(NULL, "Failed to enable hook for CreateFileA.", NULL, MB_ICONERROR);
             break;
-        }*/
+        }
+
+        if (MH_EnableHook(ReadFile) != MH_OK) {
+            showMessageBox(NULL, "Failed to enable hook for ReadFile.", NULL, MB_ICONERROR);
+            break;
+        }
+
+        if (MH_EnableHook(WriteFile) != MH_OK) {
+            showMessageBox(NULL, "Failed to enable hook for WriteFile.", NULL, MB_ICONERROR);
+            break;
+        }
 
         isOk = true;
     } while (false);
