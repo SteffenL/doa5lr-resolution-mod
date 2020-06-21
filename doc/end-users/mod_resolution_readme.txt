@@ -1,5 +1,5 @@
 ﻿Modification to allow the user to specify any video resolution for the game "Dead or Alive 5: Last Round".
-Game version(s): 1.02
+Game version(s): 1.10c (Steam)
 ================================================================================
 
 
