@@ -3,12 +3,12 @@
 set mainExeName=d3d9.dll
 set solutionDir=%~dp0..
 set endUserDocDir=%solutionDir%\doc\end-users
-set artifactsDir=%solutionDir%\bin\Release
+set artifactsDir=%solutionDir%\build\Release
 
 ::for /f "delims=" %%a in ('git describe --long --tags --dirty --always') do set "version=%%a"
 :: Ref.: http://stackoverflow.com/questions/6697878/get-the-file-version-of-a-dll-or-exe
 set version=x.x.x
-FOR /F "tokens=1-3" %%i IN ('%~dp0bin\sigcheck\sigcheck.exe "%artifactsDir%\%mainExeName%"') DO (
+FOR /F "tokens=1-3" %%i IN ('%~dp0bin\sigcheck\sigcheck.exe /accepteula "%artifactsDir%\%mainExeName%"') DO (
     IF "%%i %%j" == "File version:" SET version=%%k
 )
 
@@ -20,9 +20,7 @@ set releaseArchiveFilePath=%~dp0\Doa5lrResolutionMod-%version%-bin.zip
 
 
 :: Package artifacts
-pushd "%artifactsDir%"
-zip -9 -r -i * -T "%artifactsArchiveFilePath%" .
-popd
+powershell "Compress-Archive \"%artifactsDir%\*\" \"%artifactsArchiveFilePath%\""
 
 
 :: Create release-package
@@ -43,9 +41,7 @@ robocopy "%artifactsDir%" "%tempFilesDir%" *.exe *.dll /XJ /XF *Tests.*
 robocopy "%endUserDocDir%" "%tempFilesDir%" /E /XJ
 
 :: Zip everything
-pushd "%tempFilesDir%"
-zip -9 -r -T "%releaseArchiveFilePath%" .
-popd
+powershell "Compress-Archive \"%tempFilesDir%\*\" \"%releaseArchiveFilePath%\""
 
 
 :: Clean up
