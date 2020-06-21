@@ -22,8 +22,6 @@
 
 D3d9OrigFunctions g_origDllFunctions;
 HMODULE g_origDll = NULL;
-uintptr_t g_baseOfCode = 0;
-uintptr_t g_sizeOfCode = 0;
 
 //std::vector<HMODULE> g_proxyLibraries_D3d9;
 std::vector<D3d9OrigFunctions::Direct3DCreate9_t> g_proxyChain_Direct3DCreate9;
@@ -90,6 +88,17 @@ HANDLE WINAPI CreateFileADetour(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD 
 
 BOOL hookGame()
 {
+    auto mainExe = GetModuleHandleA(NULL);
+    if (!mainExe) {
+        showMessageBox(NULL, "Something is wrong...", NULL, MB_ICONERROR);
+        ExitProcess(1);
+        return FALSE;
+    }
+
+    uintptr_t imageBase = reinterpret_cast<uintptr_t>(mainExe);
+    auto ntHeaders = ImageNtHeader(reinterpret_cast<void*>(imageBase));
+    auto baseOfCode = imageBase + ntHeaders->OptionalHeader.BaseOfCode;
+    auto sizeOfCode = ntHeaders->OptionalHeader.SizeOfCode;
 
 
     //
@@ -119,16 +128,15 @@ BOOL hookGame()
     {
         const int want = 25;
         int matched = 0;
-        char* p = (char*)g_baseOfCode;
-        char* pseq = sequence;
-        while (matched < want && p < (char*)(g_baseOfCode + g_sizeOfCode)) {
-            if (*(p + matched) == *(pseq + matched)) {
-                ++matched;
-            }
-            else {
+        char* p = (char*)baseOfCode;
+        while (matched < want && p < (char*)(baseOfCode + sizeOfCode - want)) {
+            if (*(p + matched) != *(sequence + matched) || p == sequence) {
                 matched = 0;
                 ++p;
+                continue;
             }
+
+            ++matched;
         }
 
         if (matched != want) {
@@ -137,13 +145,13 @@ BOOL hookGame()
             return FALSE;
         }
 
-        SetResolution_offset = (uintptr_t)(p - g_baseOfCode);
+        SetResolution_offset = (uintptr_t)(p - baseOfCode);
     }
 
     //showMessageBox(NULL, "Attach", NULL, MB_ICONERROR);
     //DebugBreak();
 
-    if (MH_CreateHook(reinterpret_cast<void*>(g_baseOfCode + SetResolution_offset), &SetResolutionDetour, reinterpret_cast<LPVOID*>(&SetResolutionOrig)) != MH_OK) {
+    if (MH_CreateHook(reinterpret_cast<void*>(baseOfCode + SetResolution_offset), &SetResolutionDetour, reinterpret_cast<LPVOID*>(&SetResolutionOrig)) != MH_OK) {
         showMessageBox(NULL, "Failed to create hook for SetResolution.", NULL, MB_ICONERROR);
         ExitProcess(1);
         return FALSE;
@@ -154,7 +162,7 @@ BOOL hookGame()
     // Enable  hooks
     //
 
-    if (MH_EnableHook(reinterpret_cast<void*>(g_baseOfCode + SetResolution_offset)) != MH_OK) {
+    if (MH_EnableHook(reinterpret_cast<void*>(baseOfCode + SetResolution_offset)) != MH_OK) {
         showMessageBox(NULL, "Failed to enable hook for SetResolution.", NULL, MB_ICONERROR);
         ExitProcess(1);
         return FALSE;
@@ -163,32 +171,18 @@ BOOL hookGame()
     return TRUE;
 }
 
-typedef DWORD (WINAPI* GetPrivateProfileStringA_t)(
-__in_opt LPCSTR lpAppName,
-__in_opt LPCSTR lpKeyName,
-__in_opt LPCSTR lpDefault,
-__out_ecount_part_opt(nSize, return +1) LPSTR lpReturnedString,
-__in     DWORD nSize,
-__in_opt LPCSTR lpFileName
-);
+typedef bool(__cdecl* SteamAPI_Init_t)();
 
-GetPrivateProfileStringA_t GetPrivateProfileStringAOrig;
+SteamAPI_Init_t SteamAPI_Init;
+SteamAPI_Init_t SteamAPI_InitOrig;
 
-
-DWORD WINAPI GetPrivateProfileStringADetour(
-    __in_opt LPCSTR lpAppName,
-    __in_opt LPCSTR lpKeyName,
-    __in_opt LPCSTR lpDefault,
-    __out_ecount_part_opt(nSize, return +1) LPSTR lpReturnedString,
-    __in     DWORD nSize,
-    __in_opt LPCSTR lpFileName
-)
+bool __cdecl SteamAPI_InitDetour()
 {
-    MH_DisableHook(GetPrivateProfileStringA);
+    MH_DisableHook(SteamAPI_Init);
 
     hookGame();
 
-    return GetPrivateProfileStringAOrig(lpAppName, lpKeyName, lpDefault, lpReturnedString, nSize, lpFileName);
+    return SteamAPI_InitOrig();
 }
 
 
@@ -358,9 +352,15 @@ BOOL initializeHooks()
             break;
         }
 
-        auto mainExe = GetModuleHandleA(NULL);
-        if (!mainExe) {
-            showMessageBox(NULL, "Something is wrong...", NULL, MB_ICONERROR);
+        auto steamApi = GetModuleHandleA("steam_api.dll");
+        if (!steamApi) {
+            showMessageBox(NULL, "Failed to find Steam API.", NULL, MB_ICONERROR);
+            break;
+        }
+
+        SteamAPI_Init = reinterpret_cast<SteamAPI_Init_t>(GetProcAddress(steamApi, "SteamAPI_Init"));
+        if (!SteamAPI_Init) {
+            showMessageBox(NULL, "Failed to find SteamAPI_Init.", NULL, MB_ICONERROR);
             break;
         }
 
@@ -369,17 +369,12 @@ BOOL initializeHooks()
             break;
         }
 
-        uintptr_t imageBase = reinterpret_cast<uintptr_t>(mainExe);
-        auto ntHeaders = ImageNtHeader(reinterpret_cast<void*>(imageBase));
-        g_baseOfCode = imageBase + ntHeaders->OptionalHeader.BaseOfCode;
-        g_sizeOfCode = ntHeaders->OptionalHeader.SizeOfCode;
-
         //
         // Create  hooks
         //
 
-        if (MH_CreateHook(GetPrivateProfileStringA, &GetPrivateProfileStringADetour, reinterpret_cast<LPVOID*>(&GetPrivateProfileStringAOrig)) != MH_OK) {
-            showMessageBox(NULL, "Failed to create hook for SetResolution.", NULL, MB_ICONERROR);
+        if (MH_CreateHook(SteamAPI_Init, &SteamAPI_InitDetour, reinterpret_cast<LPVOID*>(&SteamAPI_InitOrig)) != MH_OK) {
+            showMessageBox(NULL, "Failed to create hook for SteamAPI_Init.", NULL, MB_ICONERROR);
             break;
         }
 
@@ -403,8 +398,8 @@ BOOL initializeHooks()
             return false;
         }*/
 
-        if (MH_EnableHook(GetPrivateProfileStringA) != MH_OK) {
-            showMessageBox(NULL, "Failed to enable hook for SetResolution.", NULL, MB_ICONERROR);
+        if (MH_EnableHook(SteamAPI_Init) != MH_OK) {
+            showMessageBox(NULL, "Failed to enable hook for SteamAPI_Init.", NULL, MB_ICONERROR);
             break;
         }
 
