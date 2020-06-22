@@ -1,5 +1,5 @@
 #include "hooks.h"
-#include "StandardPaths.h"
+#include "util.h"
 
 #include <vector>
 #include <string>
@@ -7,10 +7,7 @@
 #include <stdio.h>
 
 #include <MinHook.h>
-#include <DbgHelp.h>
 #include <strsafe.h>
-
-#pragma comment(lib, "DbgHelp.lib")
 
 #define MOD_SHORT_NAME "ResMod"
 
@@ -46,66 +43,6 @@ int showMessageBox(HWND hWnd, LPCWSTR lpText, LPCWSTR lpCaption, UINT uType)
     return MessageBoxW(hWnd, text, lpCaption, uType);
 }
 
-// https://stackoverflow.com/a/1186465
-int calculateGcd(int a, int b)
-{
-    return (b == 0) ? a : calculateGcd(b, a % b);
-}
-
-BOOL search(const char* from, const char* to, const char* pattern, int patternLength, uintptr_t* resultOffset, const char* pattern2 = nullptr) {
-    int matched = 0;
-    const char* p = from;
-
-    while (matched < patternLength && p < (to - patternLength)) {
-        if (pattern2 && *(pattern2 + matched) == '?') {
-            ++matched;
-            continue;
-        }
-
-        if (*(p + matched) != *(pattern + matched) || p == pattern) {
-            matched = 0;
-            ++p;
-            continue;
-        }
-
-        ++matched;
-    }
-
-    bool isMatch = matched == patternLength;
-
-    if (isMatch && resultOffset) {
-        *resultOffset = static_cast<uintptr_t>(p - from);
-    }
-
-    return isMatch;
-}
-
-bool getBaseOfCode(uintptr_t& baseOfCode, uintptr_t& sizeOfCode) {
-    auto mainExe = GetModuleHandleA(NULL);
-    if (!mainExe) {
-        return false;
-    }
-
-    uintptr_t imageBase = reinterpret_cast<uintptr_t>(mainExe);
-    auto ntHeaders = ImageNtHeader(reinterpret_cast<void*>(imageBase));
-    baseOfCode = imageBase + ntHeaders->OptionalHeader.BaseOfCode;
-    sizeOfCode = ntHeaders->OptionalHeader.SizeOfCode;
-    return TRUE;
-}
-
-bool getBaseOfData(uintptr_t& baseOfData) {
-    auto mainExe = GetModuleHandleA(NULL);
-    if (!mainExe) {
-        return false;
-    }
-
-    uintptr_t imageBase = reinterpret_cast<uintptr_t>(mainExe);
-    auto ntHeaders = ImageNtHeader(reinterpret_cast<void*>(imageBase));
-    baseOfData = imageBase + ntHeaders->OptionalHeader.BaseOfData;
-    return true;
-}
-
-
 struct CustomVideoSettings_t
 {
     unsigned int ResolutionWidth;
@@ -132,7 +69,7 @@ void __fastcall SetResolutionDetour(void* self, void* edx_, int width, int heigh
     width = g_videoSettings.ResolutionWidth;
     height = g_videoSettings.ResolutionHeight;
 
-    auto gcd = calculateGcd(width, height);
+    auto gcd = util::calculateGcd(width, height);
     unknown1 = width / gcd;
     unknown2 = height / gcd;
 
@@ -161,7 +98,7 @@ bool hookSetResolution(uintptr_t baseOfCode, uintptr_t sizeOfCode) {
     const int patternLength = 25;
     uintptr_t offset = 0;
 
-    if (!search(reinterpret_cast<const char*>(baseOfCode), reinterpret_cast<const char*>(baseOfCode + sizeOfCode), pattern, patternLength, &offset)) {
+    if (!util::search(reinterpret_cast<const char*>(baseOfCode), reinterpret_cast<const char*>(baseOfCode + sizeOfCode), pattern, patternLength, &offset)) {
         return false;
     }
 
@@ -199,7 +136,7 @@ bool fixViewClipping(uintptr_t baseOfCode, uintptr_t sizeOfCode) {
     const int patternLength = 25;
     uintptr_t offset = 0;
 
-    if (!search(reinterpret_cast<const char*>(baseOfCode), reinterpret_cast<const char*>(baseOfCode + sizeOfCode), pattern, patternLength, &offset)) {
+    if (!util::search(reinterpret_cast<const char*>(baseOfCode), reinterpret_cast<const char*>(baseOfCode + sizeOfCode), pattern, patternLength, &offset)) {
         return false;
     }
 
@@ -226,7 +163,7 @@ bool fixViewClipping(uintptr_t baseOfCode, uintptr_t sizeOfCode) {
 
 bool fixAspectRatio() {
     uintptr_t baseOfData{};
-    if (!getBaseOfData(baseOfData)) {
+    if (!util::getBaseOfData(baseOfData)) {
         return false;
     }
 
@@ -256,7 +193,7 @@ bool __cdecl SteamAPI_InitDetour()
     uintptr_t baseOfCode{};
     uintptr_t sizeOfCode{};
 
-    if (!getBaseOfCode(baseOfCode, sizeOfCode)) {
+    if (!util::getBaseOfCode(baseOfCode, sizeOfCode)) {
         return false;
     }
 
@@ -332,7 +269,7 @@ bool loadD3d9()
 bool loadConfig()
 {
     wchar_t configFilePath[MAX_PATH];
-    core::StandardPaths::GetExecutableDir(configFilePath, _countof(configFilePath));
+    util::getExecutableDir(configFilePath, _countof(configFilePath));
     StringCchCatW(configFilePath, _countof(configFilePath), L"\\mod_resolution.ini");
 
     // Video resolution
