@@ -1,8 +1,5 @@
 #include "hooks.h"
 #include "StandardPaths.h"
-//#include "SequenceSearcher.h"
-
-//#include <nowide/convert.hpp>
 
 #include <vector>
 #include <string>
@@ -49,9 +46,65 @@ int showMessageBox(HWND hWnd, LPCWSTR lpText, LPCWSTR lpCaption, UINT uType)
     return MessageBoxW(hWnd, text, lpCaption, uType);
 }
 
+// https://stackoverflow.com/a/1186465
+int calculateGcd(int a, int b)
+{
+    return (b == 0) ? a : calculateGcd(b, a % b);
+}
 
-typedef void(_stdcall* SetResolution_t)(int width, int height, int unknown1, int unknown2);
-SetResolution_t SetResolutionOrig;
+BOOL search(const char* from, const char* to, const char* pattern, int patternLength, uintptr_t* resultOffset, const char* pattern2 = nullptr) {
+    int matched = 0;
+    const char* p = from;
+
+    while (matched < patternLength && p < (to - patternLength)) {
+        if (pattern2 && *(pattern2 + matched) == '?') {
+            ++matched;
+            continue;
+        }
+
+        if (*(p + matched) != *(pattern + matched) || p == pattern) {
+            matched = 0;
+            ++p;
+            continue;
+        }
+
+        ++matched;
+    }
+
+    bool isMatch = matched == patternLength;
+
+    if (isMatch && resultOffset) {
+        *resultOffset = static_cast<uintptr_t>(p - from);
+    }
+
+    return isMatch;
+}
+
+bool getBaseOfCode(uintptr_t& baseOfCode, uintptr_t& sizeOfCode) {
+    auto mainExe = GetModuleHandleA(NULL);
+    if (!mainExe) {
+        return false;
+    }
+
+    uintptr_t imageBase = reinterpret_cast<uintptr_t>(mainExe);
+    auto ntHeaders = ImageNtHeader(reinterpret_cast<void*>(imageBase));
+    baseOfCode = imageBase + ntHeaders->OptionalHeader.BaseOfCode;
+    sizeOfCode = ntHeaders->OptionalHeader.SizeOfCode;
+    return TRUE;
+}
+
+bool getBaseOfData(uintptr_t& baseOfData) {
+    auto mainExe = GetModuleHandleA(NULL);
+    if (!mainExe) {
+        return false;
+    }
+
+    uintptr_t imageBase = reinterpret_cast<uintptr_t>(mainExe);
+    auto ntHeaders = ImageNtHeader(reinterpret_cast<void*>(imageBase));
+    baseOfData = imageBase + ntHeaders->OptionalHeader.BaseOfData;
+    return true;
+}
+
 
 struct CustomVideoSettings_t
 {
@@ -66,47 +119,27 @@ struct CustomVideoSettings_t
 
 CustomVideoSettings_t g_videoSettings;
 
-void _stdcall SetResolutionDetour(int width, int height, int unknown1, int unknown2)
+typedef void(__thiscall* SetResolution_t)(void* self, int width, int height, int unknown1, int unknown2);
+SetResolution_t SetResolutionOrig;
+
+typedef bool(__cdecl* SteamAPI_Init_t)();
+
+SteamAPI_Init_t SteamAPI_Init;
+SteamAPI_Init_t SteamAPI_InitOrig;
+
+void __fastcall SetResolutionDetour(void* self, void* edx_, int width, int height, int unknown1, int unknown2)
 {
     width = g_videoSettings.ResolutionWidth;
     height = g_videoSettings.ResolutionHeight;
 
-    SetResolutionOrig(width, height, unknown1, unknown2);
+    auto gcd = calculateGcd(width, height);
+    unknown1 = width / gcd;
+    unknown2 = height / gcd;
+
+    SetResolutionOrig(self, width, height, unknown1, unknown2);
 }
 
-
-typedef HANDLE(WINAPI* CreateFileA_t)(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
-CreateFileA_t CreateFileAOrig;
-
-HANDLE WINAPI CreateFileADetour(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
-{
-    showMessageBox(0, lpFileName, "File", 0);
-
-    return CreateFileAOrig(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-}
-
-
-BOOL hookGame()
-{
-    auto mainExe = GetModuleHandleA(NULL);
-    if (!mainExe) {
-        showMessageBox(NULL, "Something is wrong...", NULL, MB_ICONERROR);
-        ExitProcess(1);
-        return FALSE;
-    }
-
-    uintptr_t imageBase = reinterpret_cast<uintptr_t>(mainExe);
-    auto ntHeaders = ImageNtHeader(reinterpret_cast<void*>(imageBase));
-    auto baseOfCode = imageBase + ntHeaders->OptionalHeader.BaseOfCode;
-    auto sizeOfCode = ntHeaders->OptionalHeader.SizeOfCode;
-
-
-    //
-    // Create  hooks
-    //
-
-
-    uintptr_t SetResolution_offset;
+bool hookSetResolution(uintptr_t baseOfCode, uintptr_t sizeOfCode) {
     /*
     CPU Disasm
     Address   Hex dump                   Command                                                                                Comments
@@ -124,82 +157,145 @@ BOOL hookGame()
     00498A16      8B75 08                mov     esi, dword ptr ss:[ebp+8]
     */
 
-    char* sequence = "\x55\x8B\xEC\x53\x8B\x5D\x14\x56\x57\x8B\x7D\x0C\x8B\xC7\x0F\xAF\x45\x10\x33\xD2\xF7\xF3\x8B\x75\x08";
-    {
-        const int want = 25;
-        int matched = 0;
-        char* p = (char*)baseOfCode;
-        while (matched < want && p < (char*)(baseOfCode + sizeOfCode - want)) {
-            if (*(p + matched) != *(sequence + matched) || p == sequence) {
-                matched = 0;
-                ++p;
-                continue;
-            }
+    const char* pattern = "\x55\x8B\xEC\x53\x8B\x5D\x14\x56\x57\x8B\x7D\x0C\x8B\xC7\x0F\xAF\x45\x10\x33\xD2\xF7\xF3\x8B\x75\x08";
+    const int patternLength = 25;
+    uintptr_t offset = 0;
 
-            ++matched;
-        }
-
-        if (matched != want) {
-            showMessageBox(NULL, "Failed to locate SetResolution. Wrong version of the game?", NULL, MB_ICONERROR);
-            ExitProcess(1);
-            return FALSE;
-        }
-
-        SetResolution_offset = (uintptr_t)(p - baseOfCode);
+    if (!search(reinterpret_cast<const char*>(baseOfCode), reinterpret_cast<const char*>(baseOfCode + sizeOfCode), pattern, patternLength, &offset)) {
+        return false;
     }
 
-    //showMessageBox(NULL, "Attach", NULL, MB_ICONERROR);
-    //DebugBreak();
+    auto SetResolution = baseOfCode + offset;
 
-    if (MH_CreateHook(reinterpret_cast<void*>(baseOfCode + SetResolution_offset), &SetResolutionDetour, reinterpret_cast<LPVOID*>(&SetResolutionOrig)) != MH_OK) {
-        showMessageBox(NULL, "Failed to create hook for SetResolution.", NULL, MB_ICONERROR);
-        ExitProcess(1);
-        return FALSE;
+    if (MH_CreateHook(reinterpret_cast<void*>(SetResolution), &SetResolutionDetour, reinterpret_cast<LPVOID*>(&SetResolutionOrig)) != MH_OK) {
+        return false;
     }
 
-
-    //
-    // Enable  hooks
-    //
-
-    if (MH_EnableHook(reinterpret_cast<void*>(baseOfCode + SetResolution_offset)) != MH_OK) {
-        showMessageBox(NULL, "Failed to enable hook for SetResolution.", NULL, MB_ICONERROR);
-        ExitProcess(1);
-        return FALSE;
+    if (MH_EnableHook(reinterpret_cast<void*>(SetResolution)) != MH_OK) {
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
-typedef bool(__cdecl* SteamAPI_Init_t)();
+bool fixViewClipping(uintptr_t baseOfCode, uintptr_t sizeOfCode) {
+    /*
+    00994FFE | 74 0E                    | je game.99500E                                                   | Change to jmp to stretch image to full width
+    00995000 | 84D2                     | test dl,dl                                                       |
+    00995002 | 0F94C2                   | sete dl                                                          |
+    00995005 | 8851 02                  | mov byte ptr ds:[ecx+2],dl                                       |
+    00995008 | C641 03 01               | mov byte ptr ds:[ecx+3],1                                        |
+    0099500C | EB 07                    | jmp game.995015                                                  |
+    0099500E | C641 02 00               | mov byte ptr ds:[ecx+2],0                                        |
+    00995012 | 8851 03                  | mov byte ptr ds:[ecx+3],dl                                       |
+    00995015 | 8079 02 00               | cmp byte ptr ds:[ecx+2],0                                        |
+    00995019 | 8B10                     | mov edx,dword ptr ds:[eax]                                       |
+    0099501B | 8951 08                  | mov dword ptr ds:[ecx+8],edx                                     |
+    0099501E | 8B40 04                  | mov eax,dword ptr ds:[eax+4]                                     |
+    00995021 | 8941 0C                  | mov dword ptr ds:[ecx+C],eax                                     |
+    */
 
-SteamAPI_Init_t SteamAPI_Init;
-SteamAPI_Init_t SteamAPI_InitOrig;
+    const char* pattern = "\x74\x0E\x84\xD2\x0F\x94\xC2\x88\x51\x02\xC6\x41\x03\x01\xEB\x07\xC6\x41\x02\x00\x88\x51\x03\x80\x79\x02\x00\x8B\x10\x89\x51\x08\x8B\x40\x04\x89\x41\x0C";
+    const int patternLength = 25;
+    uintptr_t offset = 0;
+
+    if (!search(reinterpret_cast<const char*>(baseOfCode), reinterpret_cast<const char*>(baseOfCode + sizeOfCode), pattern, patternLength, &offset)) {
+        return false;
+    }
+
+    auto instruction = reinterpret_cast<unsigned char*>(baseOfCode + offset);
+
+    DWORD oldProtect{};
+    if (!VirtualProtect(instruction, 1, PAGE_EXECUTE_READWRITE, &oldProtect)) {
+        return false;
+    }
+
+    *instruction = 0xeb; // jmp
+    int instructionSize = 1;
+
+    if (!VirtualProtect(instruction, instructionSize, oldProtect, &oldProtect)) {
+        return false;
+    }
+
+    if (!FlushInstructionCache(GetCurrentProcess(), instruction, instructionSize)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool fixAspectRatio() {
+    uintptr_t baseOfData{};
+    if (!getBaseOfData(baseOfData)) {
+        return false;
+    }
+
+    auto aspectRatioPtr = reinterpret_cast<float*>(baseOfData + 0x50ECC);
+
+    DWORD oldProtect{};
+    if (!VirtualProtect(aspectRatioPtr, 4, PAGE_READWRITE, &oldProtect)) {
+        return false;
+    }
+
+    *aspectRatioPtr = static_cast<float>(g_videoSettings.ResolutionWidth) / static_cast<float>(g_videoSettings.ResolutionHeight);
+
+    if (!VirtualProtect(aspectRatioPtr, 4, oldProtect, &oldProtect)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool g_resolutionHooked = false;
+bool g_viewClippingFixed = false;
 
 bool __cdecl SteamAPI_InitDetour()
 {
     MH_DisableHook(SteamAPI_Init);
 
-    hookGame();
+    uintptr_t baseOfCode{};
+    uintptr_t sizeOfCode{};
+
+    if (!getBaseOfCode(baseOfCode, sizeOfCode)) {
+        return false;
+    }
+
+    if (!g_resolutionHooked) {
+        if (hookSetResolution(baseOfCode, sizeOfCode)) {
+            g_resolutionHooked = true;
+        }
+    }
+
+    if (!g_viewClippingFixed) {
+        if (fixViewClipping(baseOfCode, sizeOfCode)) {
+            g_viewClippingFixed = true;
+        }
+    }
 
     return SteamAPI_InitOrig();
 }
 
-
-/*
-OrigFunctions::Direct3DCreate9_t Direct3DCreate9Orig;
-
-IDirect3D9* _stdcall Direct3DCreate9Detour(UINT SDKVersion)
-{
-    for (auto Direct3DCreate9_proxy : g_proxyChain_Direct3DCreate9) {
-        if (!Direct3DCreate9_proxy(SDKVersion)) {
-            continue;
-        }
+bool applyMainHooks() {
+    auto steamApi = GetModuleHandleA("steam_api.dll");
+    if (!steamApi) {
+        return false;
     }
 
-    return Direct3DCreate9Orig(SDKVersion);
-}*/
+    SteamAPI_Init = reinterpret_cast<SteamAPI_Init_t>(GetProcAddress(steamApi, "SteamAPI_Init"));
+    if (!SteamAPI_Init) {
+        return false;
+    }
 
+    if (MH_CreateHook(SteamAPI_Init, &SteamAPI_InitDetour, reinterpret_cast<LPVOID*>(&SteamAPI_InitOrig)) != MH_OK) {
+        return false;
+    }
+
+    if (MH_EnableHook(SteamAPI_Init) != MH_OK) {
+        return false;
+    }
+
+    return true;
+}
 
 bool loadD3d9()
 {
@@ -333,11 +429,8 @@ bool loadProxyChains()
     return true;
 }
 
-
 BOOL initializeHooks()
 {
-    //showMessageBox(NULL, "Attach", NULL, MB_ICONERROR);
-
     bool isOk = false;
     do {
         if (!loadConfig()) {
@@ -352,61 +445,20 @@ BOOL initializeHooks()
             break;
         }
 
-        auto steamApi = GetModuleHandleA("steam_api.dll");
-        if (!steamApi) {
-            showMessageBox(NULL, "Failed to find Steam API.", NULL, MB_ICONERROR);
-            break;
-        }
-
-        SteamAPI_Init = reinterpret_cast<SteamAPI_Init_t>(GetProcAddress(steamApi, "SteamAPI_Init"));
-        if (!SteamAPI_Init) {
-            showMessageBox(NULL, "Failed to find SteamAPI_Init.", NULL, MB_ICONERROR);
-            break;
-        }
-
         if (MH_Initialize() != MH_OK) {
             showMessageBox(NULL, "Failed to initialize MinHook.", NULL, MB_ICONERROR);
             break;
         }
 
-        //
-        // Create  hooks
-        //
-
-        if (MH_CreateHook(SteamAPI_Init, &SteamAPI_InitDetour, reinterpret_cast<LPVOID*>(&SteamAPI_InitOrig)) != MH_OK) {
-            showMessageBox(NULL, "Failed to create hook for SteamAPI_Init.", NULL, MB_ICONERROR);
+        if (!applyMainHooks()) {
+            showMessageBox(NULL, "Failed to apply main hooks.", NULL, MB_ICONERROR);
             break;
         }
 
-        /*if (MH_CreateHook(CreateFileA, &CreateFileADetour, reinterpret_cast<LPVOID*>(&CreateFileAOrig)) != MH_OK) {
-            showMessageBox(NULL, "Failed to create hook for CreateFileA.", NULL, MB_ICONERROR);
-            break;
-        }*/
-
-        /*if (MH_CreateHook(g_origDllFunctions.Direct3DCreate9, &Direct3DCreate9Detour, reinterpret_cast<LPVOID*>(&Direct3DCreate9Orig)) != MH_OK) {
-            showMessageBox(NULL, "Failed to create hook for Direct3DCreate9.", NULL, MB_ICONERROR);
-            return false;
-        }*/
-
-
-        //
-        // Enable  hooks
-        //
-
-        /*if (MH_EnableHook(g_origDllFunctions.Direct3DCreate9) != MH_OK) {
-            showMessageBox(NULL, "Failed to enable hook for Direct3DCreate9.", NULL, MB_ICONERROR);
-            return false;
-        }*/
-
-        if (MH_EnableHook(SteamAPI_Init) != MH_OK) {
-            showMessageBox(NULL, "Failed to enable hook for SteamAPI_Init.", NULL, MB_ICONERROR);
+        if (!fixAspectRatio()) {
+            showMessageBox(NULL, "Failed to fix aspect ratio.", NULL, MB_ICONERROR);
             break;
         }
-
-        /*if (MH_EnableHook(CreateFileA) != MH_OK) {
-            showMessageBox(NULL, "Failed to enable hook for CreateFileA.", NULL, MB_ICONERROR);
-            break;
-        }*/
 
         isOk = true;
     } while (false);
