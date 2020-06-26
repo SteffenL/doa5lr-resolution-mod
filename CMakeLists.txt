@@ -19,5 +19,6 @@ target_include_directories(minhook PUBLIC libs/minhook/include)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp src/*.rc src/*.def)
 add_library(resmod SHARED ${SOURCES})
+target_compile_features(resmod PUBLIC cxx_std_17)
 target_link_libraries(resmod PRIVATE minhook)
 set_target_properties(resmod PROPERTIES OUTPUT_NAME d3d9)

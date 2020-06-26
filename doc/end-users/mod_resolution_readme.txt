@@ -17,22 +17,9 @@ Place the following files in your DOA5LR install directory:
     d3d9.dll
     mod_resolution.ini
 
-Open the config file "mod_resolution.ini" with a text editor (e.g. Notepad) and specify a custom video resolution (e.g. 2560x1440).
+Open the config file "mod_resolution.ini" with a text editor (e.g. Notepad) and follow the instructions inside.
 
-If you need to use additional graphical mods (e.g. SweetFX) that provide their own Direct3D9 proxy libraries (d3d9.dll), they may co-exist:
-    1. Rename any other files named "d3d9.dll". For SweetFX, I suggest "d3d9_sweetfx.dll".
-    2. In the config section "ProxyChain_D3D9", add an entry for the file you just renamed. Example:
-
-       [ProxyChain_D3D9]
-       SweetFX=d3d9_sweetfx.dll
-
-       You may disable a library by prepending ";" like this:
-
-       [ProxyChain_D3D9]
-       ;SweetFX=d3d9_sweetfx.dll
-
-       Libraries will be loaded in the order they were specified in this section.
-       NOTE: Currently, only a single proxy library is supported.
+At a minimum you must configure "Resolution", e.g. "Resolution=3440x1440".
 
 
 Developer
