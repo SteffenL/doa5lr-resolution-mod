@@ -10,6 +10,7 @@ Aspect ratios such as 21:9 and wider work without black bars, at the cost of str
     mkdir build && cd build
     cmake .. -G "Visual Studio 16 2019" -A Win32
     cmake --build . --config Release
+    cpack
 
 ## License
 
