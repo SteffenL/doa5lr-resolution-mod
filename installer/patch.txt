@@ -1,0 +1,5 @@
+<CPackWiXPatch>
+  <CPackWiXFragment Id="CM_CP_mod_resolution.ini">
+    <IniFile Id="ConfigFile" Action="addLine" Directory="INSTALL_ROOT" Name="mod_resolution.ini" Section="Video" Key="Resolution" Value="[VIDEO_RESOLUTION]" />
+  </CPackWiXFragment>
+</CPackWiXPatch>

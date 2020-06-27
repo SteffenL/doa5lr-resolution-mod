@@ -2,6 +2,8 @@
 
 #define MOD_NAME "DO5LR Resolution Mod"
 // Remember to set this in the *.rc file
-#define MOD_VERSION "0.4.0"
+#ifndef MOD_VERSION
+#define MOD_VERSION "dev"
+#endif
 #define MOD_AUTHOR "Steffen André langnes"
 #define MOD_WEBSITE "https://www.steffenl.com"
