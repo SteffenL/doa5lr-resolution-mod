@@ -1,16 +1,18 @@
 #pragma once
 
 #include <cstdint>
-#include <Windows.h>
+#include <memory>
 
 class Process {
 public:
-    Process(HMODULE handle);
+    Process(void* handle);
+    ~Process();
     static Process current();
-    HMODULE getHandle() const;
+    void* getHandle() const;
     void getBaseOfCode(uintptr_t& baseOfCode, uintptr_t& sizeOfCode) const;
     void getBaseOfData(uintptr_t& baseOfData) const;
 
 private:
-    HMODULE m_handle;
+    class Impl;
+    std::unique_ptr<Impl> m_impl;
 };
