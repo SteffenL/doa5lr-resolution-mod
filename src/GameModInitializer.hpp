@@ -12,6 +12,8 @@ public:
     const Logger& getLogger() const;
 
 private:
+    static std::unique_ptr<Logger> createLogger(const Config& config);
+
     std::unique_ptr<Config> m_config;
     std::unique_ptr<GameMod> m_gameMod;
     std::unique_ptr<Logger> m_logger;
