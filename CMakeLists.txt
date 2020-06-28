@@ -60,4 +60,5 @@ set(CPACK_WIX_EXTRA_SOURCES
     "${CMAKE_SOURCE_DIR}/installer/WixUI_InstallDir.wxs"
 )
 set(CPACK_WIX_EXTENSIONS WixUtilExtension)
+set(CPACK_WIX_CULTURES en-us)
 include(CPack)
