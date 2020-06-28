@@ -42,11 +42,6 @@ std::filesystem::path getSystemDirectory() {
     return std::filesystem::path{systemDir};
 }
 
-std::string narrow(const std::wstring& s) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> convert;
-    return convert.to_bytes(s);
-}
-
 bool search(const char* from, const char* to, const char* pattern, int patternLength, uintptr_t* resultOffset, const char* pattern2) {
     int matched = 0;
     const char* p = from;
