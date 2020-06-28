@@ -35,6 +35,7 @@ Source: "..\doc\end-users\mod_resolution_readme.txt"; DestDir: "{app}"
 [Run]
 Filename: "{app}\mod_resolution.ini"; Description: "Open configuration file"; Flags: postinstall shellexec unchecked
 Filename: "{app}\mod_resolution_readme.txt"; Description: "Open readme"; Flags: postinstall shellexec unchecked
+Filename: "{app}\game.exe"; Description: "Run game"; Flags: nowait postinstall runasoriginaluser shellexec unchecked
 
 [Code]
 const
