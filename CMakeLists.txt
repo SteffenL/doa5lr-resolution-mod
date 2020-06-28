@@ -7,6 +7,7 @@ set(CPACK_PACKAGE_VERSION_MINOR "4")
 set(CPACK_PACKAGE_VERSION_PATCH "0")
 set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
 
+# This variable will be used in our external package script
 set(CPACK_WIX_UPGRADE_GUID "4C9D1195-73C9-4DAA-B104-529E205A436F")
 
 if(MSVC)
@@ -43,23 +44,11 @@ install(FILES
     doc/end-users/mod_resolution_readme.txt
     DESTINATION .)
 
-set(CPACK_GENERATOR "ZIP;WIX")
+set(CPACK_GENERATOR "ZIP;External")
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)
 set(CPACK_PACKAGE_NAME "DOA5LR Resolution Mod")
 set(CPACK_PACKAGE_VENDOR "Steffen André Langnes")
 set(CPACK_PACKAGE_FILE_NAME "Doa5lrResolutionMod-${CPACK_PACKAGE_VERSION}")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/installer/license.txt")
-set(CPACK_PACKAGE_INSTALL_DIRECTORY "SteffenL/doa5lr-resmod")
-set(CPACK_WIX_PATCH_FILE "${CMAKE_SOURCE_DIR}/installer/patch.txt")
-set(CPACK_WIX_TEMPLATE "${CMAKE_SOURCE_DIR}/installer/main.wxs")
-set(CPACK_WIX_EXTRA_SOURCES
-    "${CMAKE_SOURCE_DIR}/installer/ConfigDialog.wxs"
-    "${CMAKE_SOURCE_DIR}/installer/ExitDialog.wxs"
-    "${CMAKE_SOURCE_DIR}/installer/GameNotFoundDlg.wxs"
-    "${CMAKE_SOURCE_DIR}/installer/InstallDirDlg.wxs"
-    "${CMAKE_SOURCE_DIR}/installer/ModExistsDlg.wxs"
-    "${CMAKE_SOURCE_DIR}/installer/WixUI_InstallDir.wxs"
-)
-set(CPACK_WIX_EXTENSIONS WixUtilExtension)
-set(CPACK_WIX_CULTURES en-us)
+set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_SOURCE_DIR}/installer/main.cmake")
+
 include(CPack)
