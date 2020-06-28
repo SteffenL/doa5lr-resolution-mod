@@ -1,9 +1,10 @@
-#define SteamAppID 311730
+﻿#define SteamAppID 311730
 
 [Setup]
 AppId={#UPGRADE_GUID}
 AppName={#CPACK_PACKAGE_NAME}
 AppVersion={#CPACK_PACKAGE_VERSION}
+AppCopyright=© {#CPACK_PACKAGE_VENDOR}
 WizardStyle=modern
 DefaultDirName={code:DefDirRoot}
 Compression=lzma2
