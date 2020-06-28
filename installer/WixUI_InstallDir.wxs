@@ -7,14 +7,14 @@
 First-time install dialog sequence:
  - WixUI_WelcomeDlg
  - WixUI_LicenseAgreementDlg
- - WixUI_InstallDirDlg
+ - WixUI_CustomInstallDirDlg
  - WixUI_VerifyReadyDlg
  - WixUI_DiskCostDlg
 
 Maintenance dialog sequence:
  - WixUI_MaintenanceWelcomeDlg
  - WixUI_MaintenanceTypeDlg
- - WixUI_InstallDirDlg
+ - WixUI_CustomInstallDirDlg
  - WixUI_VerifyReadyDlg
 
 Patch dialog sequence:
@@ -54,19 +54,21 @@ Patch dialog sequence:
             <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">Installed AND PATCH</Publish>
 
             <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
-            <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg">LicenseAccepted = "1"</Publish>
+            <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="CustomInstallDirDlg">LicenseAccepted = "1"</Publish>
 
-            <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
-            <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
-            <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath" Order="2">NOT WIXUI_DONTVALIDATEPATH</Publish>
-            <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
-            <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="CheckModExists" Order="4">1</Publish>
-            <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="ModExistsDlg" Order="5"><![CDATA[MOD_EXISTS<>"0"]]></Publish>
-            <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="ConfigDialog" Order="6">MOD_EXISTS="0"</Publish>
-            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
-            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
+            <Publish Dialog="CustomInstallDirDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
+            <Publish Dialog="CustomInstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="CustomInstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath" Order="2">NOT WIXUI_DONTVALIDATEPATH</Publish>
+            <Publish Dialog="CustomInstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+            <Publish Dialog="CustomInstallDirDlg" Control="Next" Event="DoAction" Value="CheckGameFound" Order="4">1</Publish>
+            <Publish Dialog="CustomInstallDirDlg" Control="Next" Event="SpawnDialog" Value="GameNotFoundDlg" Order="5"><![CDATA[GAME_FOUND<>"1"]]></Publish>
+            <Publish Dialog="CustomInstallDirDlg" Control="Next" Event="DoAction" Value="CheckModExists" Order="6">1</Publish>
+            <Publish Dialog="CustomInstallDirDlg" Control="Next" Event="SpawnDialog" Value="ModExistsDlg" Order="7"><![CDATA[MOD_EXISTS<>"0"]]></Publish>
+            <Publish Dialog="CustomInstallDirDlg" Control="Next" Event="NewDialog" Value="ConfigDialog" Order="8">GAME_FOUND="1" AND MOD_EXISTS="0"</Publish>
+            <Publish Dialog="CustomInstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="CustomInstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
 
-            <Publish Dialog="ConfigDialog" Control="Back" Event="NewDialog" Value="InstallDirDlg">1</Publish>
+            <Publish Dialog="ConfigDialog" Control="Back" Event="NewDialog" Value="CustomInstallDirDlg">1</Publish>
             <Publish Dialog="ConfigDialog" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
 
             <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ConfigDialog" Order="1">NOT Installed</Publish>

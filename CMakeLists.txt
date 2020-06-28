@@ -56,6 +56,8 @@ set(CPACK_WIX_TEMPLATE "${CMAKE_SOURCE_DIR}/installer/main.wxs")
 set(CPACK_WIX_EXTRA_SOURCES
     "${CMAKE_SOURCE_DIR}/installer/ConfigDialog.wxs"
     "${CMAKE_SOURCE_DIR}/installer/ExitDialog.wxs"
+    "${CMAKE_SOURCE_DIR}/installer/GameNotFoundDlg.wxs"
+    "${CMAKE_SOURCE_DIR}/installer/InstallDirDlg.wxs"
     "${CMAKE_SOURCE_DIR}/installer/ModExistsDlg.wxs"
     "${CMAKE_SOURCE_DIR}/installer/WixUI_InstallDir.wxs"
 )

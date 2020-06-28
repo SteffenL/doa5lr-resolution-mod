@@ -38,6 +38,16 @@
             End If
         ]]></CustomAction>
 
+        <CustomAction Id="CheckGameFound" Script="vbscript"><![CDATA[
+            Dim fso
+            Set fso = CreateObject("Scripting.FileSystemObject")
+            If (fso.FileExists(Session.Property("INSTALL_ROOT") & "game.exe")) Then
+                Session.Property("GAME_FOUND") = "1"
+            Else
+                Session.Property("GAME_FOUND") = "0"
+            End If
+        ]]></CustomAction>
+
         <?ifdef CPACK_WIX_PRODUCT_ICON?>
         <Property Id="ARPPRODUCTICON">ProductIcon.ico</Property>
         <Icon Id="ProductIcon.ico" SourceFile="$(var.CPACK_WIX_PRODUCT_ICON)"/>
