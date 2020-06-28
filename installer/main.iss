@@ -33,7 +33,7 @@ Source: "..\doc\end-users\mod_resolution.ini"; DestDir: "{app}"; Flags: onlyifdo
 Source: "..\doc\end-users\mod_resolution_readme.txt"; DestDir: "{app}"
 
 [Run]
-Filename: "{app}\mod_resolution.ini"; Description: "Open configuration file"; Flags: postinstall shellexec
+Filename: "{app}\mod_resolution.ini"; Description: "Open configuration file"; Flags: postinstall shellexec unchecked
 Filename: "{app}\mod_resolution_readme.txt"; Description: "Open readme"; Flags: postinstall shellexec unchecked
 
 [Code]
