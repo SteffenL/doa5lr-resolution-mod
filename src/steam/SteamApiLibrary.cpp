@@ -1,13 +1,15 @@
 #include "SteamApiLibrary.hpp"
 
-SteamApiExports::SteamApiExports(HMODULE dllHandle) {
-    this->SteamAPI_Init = reinterpret_cast<SteamAPI_Init_t>(GetProcAddress(dllHandle, "SteamAPI_Init"));
+#include <Windows.h>
+
+SteamApiExports::SteamApiExports(void* dllHandle) {
+    this->SteamAPI_Init = reinterpret_cast<SteamAPI_Init_t>(GetProcAddress(static_cast<HMODULE>(dllHandle), "SteamAPI_Init"));
 }
 
 SteamApiLibrary::SteamApiLibrary() {
     if (auto dllHandle = GetModuleHandleW(L"steam_api.dll")) {
         m_exports = std::make_unique<SteamApiExports>(dllHandle);
-        m_dllHandle = dllHandle;
+        m_dllHandle = static_cast<void*>(dllHandle);
     }
 }
 
@@ -17,7 +19,7 @@ SteamApiLibrary::~SteamApiLibrary() {
     }
 }
 
-HMODULE SteamApiLibrary::getDllHandle() const {
+void* SteamApiLibrary::getDllHandle() const {
     return m_dllHandle;
 }
 
