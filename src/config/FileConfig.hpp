@@ -64,6 +64,22 @@ public:
             }
         }
 
+        // DPI aware
+        {
+            wchar_t stringValue[100]{};
+            GetPrivateProfileStringW(L"Video", L"DpiAware", NULL, stringValue, _countof(stringValue), filePathC);
+            if (wcslen(stringValue) > 0) {
+                unsigned int enable{};
+                if (swscanf_s(stringValue, L"%u", &enable) == EOF) {
+                    throw std::runtime_error{"Failed to parse DPI aware config"};
+                }
+
+                if (enable == 1) {
+                    m_dpiAware = true;
+                }
+            }
+        }
+
         // Viewport
         {
             wchar_t stringValue[100]{};

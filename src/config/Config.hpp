@@ -59,6 +59,10 @@ public:
         return m_fixAspectRatio;
     }
 
+    bool getDpiAware() const {
+        return m_dpiAware;
+    }
+
     bool getFixViewport() const {
         return m_fixViewport;
     }
@@ -76,6 +80,7 @@ protected:
     std::filesystem::path m_logFile;
     LogLevel m_logLevel;
     bool m_fixAspectRatio{};
+    bool m_dpiAware{};
     bool m_fixViewport{};
     ProxyConfig m_proxy;
     VideoResolutionConfig m_videoResolution;
