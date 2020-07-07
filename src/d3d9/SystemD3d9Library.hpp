@@ -9,5 +9,5 @@ public:
     virtual ~SystemD3d9Library();
 
 private:
-    static std::filesystem::path getSystemD3d8LibraryPath();
+    static std::filesystem::path getSystemD3d9LibraryPath();
 };
