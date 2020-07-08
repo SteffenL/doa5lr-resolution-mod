@@ -3,6 +3,8 @@
 #include <map>
 #include <stdexcept>
 
+#include <Windows.h>
+
 OsVersion::OsVersion() {}
 
 bool OsVersion::is(int major, int minor, int build, OsVersionCondition condition) const {
