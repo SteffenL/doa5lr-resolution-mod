@@ -10,10 +10,9 @@ GameMod::GameMod(const Config& config, const Logger& logger)
     : m_process{Process::current()},
       m_config{config},
       m_logger{logger} {
-    if (m_config.getDpiAware()) {
-        m_logger.debug("Enabling DPI awareness");
-        m_setDpiAware = std::make_unique<SetDpiAware>();
-    }
+
+    m_logger.debug("Setting DPI awareness");
+    m_dpiAwareness = std::make_unique<ScopedDpiAwareness>(m_config.getDpiAware());
 
     m_logger.debug("Creating Steam API hook");
     m_steamApiInitHook = std::make_unique<SteamApiInitHook>(m_steamApi, m_minhook, std::bind(&GameMod::onInit, this));
