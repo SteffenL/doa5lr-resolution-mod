@@ -9,7 +9,7 @@
 class ScopedDpiAwarenessWin10_0_14393 : public IScopedDpiAwarenessImpl {
 public:
     ScopedDpiAwarenessWin10_0_14393(bool aware) {
-        auto awareness = aware ? DPI_AWARENESS_CONTEXT_SYSTEM_AWARE : DPI_AWARENESS_CONTEXT_UNAWARE;
+        auto awareness = aware ? DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE : DPI_AWARENESS_CONTEXT_UNAWARE;
 
         m_oldAwareness = SetThreadDpiAwarenessContext(awareness);
 
