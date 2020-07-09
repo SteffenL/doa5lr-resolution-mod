@@ -1,6 +1,7 @@
 #pragma once
 
 #include "IScopedDpiAwarenessImpl.hpp"
+
 #include <memory>
 
 class ScopedDpiAwareness {

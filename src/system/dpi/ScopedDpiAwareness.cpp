@@ -1,25 +1,28 @@
 #include "ScopedDpiAwareness.hpp"
-#include "ScopedDpiAwarenessWin8_1.hpp"
-#include "ScopedDpiAwarenessWin10_0_14393.hpp"
-#include "ScopedDpiAwarenessWinLegacy.hpp"
+#include "ScopedDpiAwareness_SetProcessDPIAware.hpp"
+#include "ScopedDpiAwareness_SetProcessDpiAwareness.hpp"
+#include "ScopedDpiAwareness_SetThreadDpiAwarenessContext.hpp"
 #include "../../common/OsVersion.hpp"
+
+#include <stdexcept>
 
 ScopedDpiAwareness::ScopedDpiAwareness(bool aware) : m_impl{createImpl(aware)} {}
 
 ScopedDpiAwareness::~ScopedDpiAwareness() {}
 
 std::unique_ptr<IScopedDpiAwarenessImpl> ScopedDpiAwareness::createImpl(bool aware) {
-    OsVersion osVersion;
-
-    // Windows 10 version 1607
-    if (osVersion.is(10, 0, 14393, OsVersionCondition::GreaterOrEqual)) {
-        return std::make_unique<ScopedDpiAwarenessWin10_0_14393>(aware);
+    if (ScopedDpiAwareness_SetThreadDpiAwarenessContext::isSupported()) {
+        return std::make_unique<ScopedDpiAwareness_SetThreadDpiAwarenessContext>(aware);
     }
 
-    // Windows 8.1
-    if (osVersion.is(6, 3, 0, OsVersionCondition::GreaterOrEqual)) {
-        return std::make_unique<ScopedDpiAwarenessWin8_1>(aware);
+    if (ScopedDpiAwareness_SetProcessDpiAwareness::isSupported()) {
+        return std::make_unique<ScopedDpiAwareness_SetProcessDpiAwareness>(aware);
     }
 
-    return std::make_unique<ScopedDpiAwarenessWinLegacy>(aware);
+    if (ScopedDpiAwareness_SetProcessDPIAware::isSupported()) {
+        return std::make_unique<ScopedDpiAwareness_SetProcessDPIAware>(aware);
+    }
+
+    // We support minimum Windows 7 and DPI awareness is supported as far back as Windows Vista so throwing an exception here is OK
+    throw std::runtime_error{"DPI awareness API is unavailable on this operating system"};
 }
