@@ -7,6 +7,9 @@
 
 #include <Windows.h>
 
+/**
+ * Scoped API awareness using API available since Windows Vista.
+ */
 class ScopedDpiAwareness_SetProcessDPIAware : public IScopedDpiAwarenessImpl {
 public:
     ScopedDpiAwareness_SetProcessDPIAware(bool aware) {
