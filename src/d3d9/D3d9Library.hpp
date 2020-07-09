@@ -38,5 +38,5 @@ public:
 
 private:
     std::unique_ptr<D3d9Exports> m_exports;
-    HMODULE m_dllHandle;
+    HMODULE m_dllHandle{};
 };

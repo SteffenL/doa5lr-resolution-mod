@@ -25,5 +25,5 @@ public:
 
 private:
     std::unique_ptr<ShcoreExports> m_exports;
-    HMODULE m_dllHandle;
+    HMODULE m_dllHandle{};
 };

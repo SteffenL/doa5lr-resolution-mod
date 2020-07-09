@@ -21,8 +21,9 @@ public:
     virtual ~User32Library();
     HMODULE getDllHandle() const;
     const User32Exports& getExports() const;
+    bool isLoaded() const;
 
 private:
     std::unique_ptr<User32Exports> m_exports;
-    HMODULE m_dllHandle;
+    HMODULE m_dllHandle{};
 };

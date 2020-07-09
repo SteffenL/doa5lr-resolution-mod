@@ -26,3 +26,7 @@ HMODULE User32Library::getDllHandle() const {
 const User32Exports& User32Library::getExports() const {
     return *m_exports;
 }
+
+bool User32Library::isLoaded() const {
+    return m_exports && m_dllHandle;
+}

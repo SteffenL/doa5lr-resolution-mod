@@ -10,8 +10,14 @@
 class ScopedDpiAwareness_SetProcessDPIAware : public IScopedDpiAwarenessImpl {
 public:
     ScopedDpiAwareness_SetProcessDPIAware(bool aware) {
+        if (!aware) {
+            return;
+        }
+
         if (auto fn = m_library.getExports().SetProcessDPIAware) {
-            throw std::runtime_error{"Unable to set DPI awareness using SetProcessDPIAware"};
+            if (!fn()) {
+                throw std::runtime_error{"Unable to set DPI awareness using SetProcessDPIAware"};
+            }
         } else {
             throw std::runtime_error{"SetProcessDPIAware is unavailable"};
         }
@@ -23,6 +29,10 @@ public:
 
     static bool isSupported() {
         SystemUser32Library library;
+        if (!library.isLoaded()) {
+            return false;
+        }
+
         return !!library.getExports().SetProcessDPIAware;
     }
 

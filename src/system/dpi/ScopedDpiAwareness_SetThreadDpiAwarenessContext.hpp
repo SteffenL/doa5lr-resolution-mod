@@ -34,6 +34,10 @@ public:
 
     static bool isSupported() {
         SystemUser32Library library;
+        if (!library.isLoaded()) {
+            return false;
+        }
+
         return !!library.getExports().SetThreadDpiAwarenessContext;
     }
 

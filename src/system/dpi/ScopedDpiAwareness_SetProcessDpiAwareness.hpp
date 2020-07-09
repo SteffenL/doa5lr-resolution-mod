@@ -43,6 +43,10 @@ public:
 
     static bool isSupported() {
         SystemShcoreLibrary library;
+        if (!library.isLoaded()) {
+            return false;
+        }
+
         const auto& exports = library.getExports();
         return exports.GetProcessDpiAwareness && exports.SetProcessDpiAwareness;
     }

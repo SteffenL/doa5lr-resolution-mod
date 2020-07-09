@@ -32,5 +32,5 @@ const ShcoreExports& ShcoreLibrary::getExports() const {
 }
 
 bool ShcoreLibrary::isLoaded() const {
-    return  !!m_dllHandle;
+    return m_exports && m_dllHandle;
 }
