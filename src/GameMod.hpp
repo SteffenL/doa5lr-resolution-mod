@@ -11,7 +11,7 @@
 #include "log/Logger.hpp"
 #include "steam/SteamApiInitHook.hpp"
 #include "steam/SteamApiLibrary.hpp"
-#include "system/SetDpiAware.hpp"
+#include "system/dpi/ScopedDpiAwareness.hpp"
 
 #include <memory>
 
@@ -36,7 +36,7 @@ private:
     SteamApiLibrary m_steamApi;
 
     std::unique_ptr<AspectRatioPatch> m_aspectRatioPatch;
-    std::unique_ptr<SetDpiAware> m_setDpiAware;
+    std::unique_ptr<ScopedDpiAwareness> m_dpiAwareness;
     std::unique_ptr<SetResolutionHook> m_setResolutionHook;
     std::unique_ptr<SteamApiInitHook> m_steamApiInitHook;
     std::unique_ptr<ViewportPatch> m_viewportPatch;
