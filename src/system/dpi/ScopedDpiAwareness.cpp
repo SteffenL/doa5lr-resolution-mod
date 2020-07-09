@@ -2,7 +2,6 @@
 #include "ScopedDpiAwareness_SetProcessDPIAware.hpp"
 #include "ScopedDpiAwareness_SetProcessDpiAwareness.hpp"
 #include "ScopedDpiAwareness_SetThreadDpiAwarenessContext.hpp"
-#include "../../common/OsVersion.hpp"
 
 #include <stdexcept>
 
